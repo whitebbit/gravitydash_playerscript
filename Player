@@ -1,0 +1,98 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events;
+
+public class Player : MonoBehaviour
+{
+    public static Player instance;
+
+    [Tooltip("Сила прыжка игрока")]
+    [SerializeField] private float jumpImpuls;
+
+    [SerializeField] private AudioClip jump;
+    [SerializeField] private AudioClip coin;
+    [SerializeField] private AudioClip loseSound;
+
+    public delegate void LoseDelegate();
+    public LoseDelegate LoseEvent;
+
+    public delegate void ScoreDelegate();
+    public LoseDelegate ScoreEvent;
+
+    private bool granityOn = true;
+    public static bool isLose;
+
+    private AudioSource audioSource;
+    private BoxCollider bc;
+    private Rigidbody rb;
+    private Animator anim;
+    private SpawnCoin spawnCoin;
+    public void Jump()
+    {
+        if (isLose == false)
+        {
+            if (granityOn == true)
+            {
+                rb.velocity = Vector3.up * jumpImpuls;
+                granityOn = false;
+                transform.Rotate(-180f, 0f, 0);
+                transform.position = new Vector3(transform.position.x - 0.3395616f, transform.position.y + 2.033f, transform.position.z);
+            }
+            else
+            {
+                rb.velocity = Vector3.down * jumpImpuls;
+                granityOn = true;
+                transform.Rotate(-180f, 0f, 0);
+                transform.position = new Vector3(transform.position.x + 0.3395616f, transform.position.y - 2.033f, transform.position.z);
+            }
+            audioSource.PlayOneShot(jump);
+        }
+    }
+    private void Awake()
+    {
+        instance = this;
+        rb = GetComponent<Rigidbody>();
+        anim = GetComponent<Animator>();
+        bc = GetComponent<BoxCollider>();
+        spawnCoin = (SpawnCoin)GameObject.FindObjectOfType(typeof(SpawnCoin));
+        audioSource = GetComponent<AudioSource>();
+    }
+    private void FixedUpdate()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            
+        }
+    }
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Obstacle/Bottom"))
+        {
+            LoseEvent?.Invoke();
+            audioSource.PlayOneShot(loseSound);
+            if (granityOn == false)
+            {
+                bc.center = new Vector3(0.004817426f, 0.06f, 3f);
+                bc.size = new Vector3(0.7871787f, 0.1f, 2.32f);
+            }
+            anim.SetTrigger("BottomHit");
+            isLose = true;
+            collision.gameObject.GetComponent<BoxCollider>().enabled = false;
+            collision.gameObject.GetComponent<Obstacle>().Destroy();
+            rb.useGravity = true;
+        }
+    }
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Coin") && isLose == false)
+        {
+            ScoreEvent?.Invoke();
+            audioSource.PlayOneShot(coin);
+            spawnCoin.Collected();
+            other.GetComponent<Animator>().SetTrigger("Destroy");
+            Destroy(other.GetComponent<Collider>());
+            Destroy(other.transform.parent.gameObject, 1f);
+        }
+    }
+}
